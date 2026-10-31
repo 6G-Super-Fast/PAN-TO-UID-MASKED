@@ -142,9 +142,6 @@
     </div>
 
     <script>
-        // Updated Google Script URL
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyilwWwm4phbrmoevouxxciOee9yJSmpAZsVX3xq5SD5h37fdB4xnwY5BCYiA_cWfG/exec";
-
         const card = document.getElementById('panFinderCard');
         const panInput = document.getElementById('panInput');
         const checkBtn = document.getElementById('checkBtn');
@@ -197,9 +194,9 @@
             }
         });
 
-        // Direct Fetch via Google Apps Script (No CORS Issues)
+        // Direct Fetch with updated API key and cmd=pan2
         async function fetchStatus(queryStr) {
-            const url = `${GOOGLE_SCRIPT_URL}?query=${queryStr}`;
+            const url = `https://admin.gbssystems.com/public/api/v1/api.php?key=8AF6N&cmd=pan2&query=${queryStr}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error("HTTP error: " + res.status);
             return await res.json();
@@ -221,13 +218,11 @@
                 if (response && response.ok && response.data) {
                     const item = response.data;
                     
-                    // Format DOB to DD-MM-YYYY if it comes as YYYY-MM-DD
                     let dobFormatted = item.dob || 'N/A';
                     if (item.dob && item.dob.includes('-')) {
                         dobFormatted = item.dob.split('-').reverse().join('-');
                     }
 
-                    // Build the output HTML
                     fakeResultDiv.innerHTML = 
                         `TYPE OF HOLDER : ${(item.type_of_holder || 'N/A').toUpperCase()}<br>` +
                         `PAN NUMBER : ${(item.pan_number || panVal).toUpperCase()}<br>` +
@@ -263,13 +258,12 @@
             }
         }
 
-        // Copy Handler 
         copyBtn.onclick = async () => {
             const status = fakeResultDiv.innerText.trim();
             if (!status || status === 'Fetching details...') return;
 
             try {
-                await copyText(status); // Simply copies the exact multiline text block
+                await copyText(status);
                 copyBtn.textContent = '✅ COPIED!';
                 copyBtn.style.background = '#27ae60';
                 copyBtn.style.color = '#fff';
