@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAN Finder Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; user-select: none; }
+        html, body {
+            background: #f9ca24 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            font-family: 'Poppins', 'Segoe UI', sans-serif !important;
+        }
+        ::-webkit-scrollbar { display: none !important; }
+        #panFinderCard {
+            max-width: 500px;
+            width: 95%;
+            padding: 30px 25px 25px 25px;
+            background: #f9ca24;
+            border: 2px solid #000000;
+            border-radius: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            margin: 0;
+        }
+        .badge {
+            display: inline-block;
+            background: transparent;
+            color: #000;
+            border: 2px solid #000;
+            font-size: 12px;
+            font-weight: 800;
+            padding: 5px 18px;
+            border-radius: 30px;
+            letter-spacing: 1.5px;
+            margin-bottom: 15px;
+        }
+        h2 { font-size: 24px; font-weight: 800; color: #000; margin: 0 0 4px 0; }
+        .subtitle { font-size: 14px; color: #000; margin: 0 0 25px 0; font-weight: 500; opacity: 0.8; }
+        .form-group { margin-bottom: 20px; text-align: left; width: 100%; }
+        label { display: block; font-size: 14px; font-weight: 600; color: #000; margin-bottom: 6px; }
+        input[type="text"] {
+            background: transparent;
+            border: 2px solid #000;
+            color: #000;
+            padding: 12px 16px;
+            font-size: 18px;
+            border-radius: 10px;
+            width: 100%;
+            font-weight: 600;
+            outline: none;
+            cursor: text;
+            user-select: text;
+            text-transform: uppercase;
+        }
+        .btn-main {
+            background: transparent;
+            color: #000;
+            border: 2px solid #000;
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: 800;
+            border-radius: 10px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin: 10px 0 20px 0;
+            font-family: inherit;
+        }
+        .btn-main:hover { background: #000; color: #f9ca24; }
+        .result-wrapper { width: 100%; }
+        #fakeResultDiv {
+            background: transparent;
+            border: 2px solid #000;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.8;
+            color: #000;
+            min-height: 50px;
+            text-align: left;
+            user-select: text;
+            word-break: break-word;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            width: 100%;
+            margin-top: 15px;
+        }
+        .btn-sub {
+            flex: 1;
+            background: transparent;
+            color: #000;
+            border: 2px solid #000;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="panFinderCard">
+        <div class="badge">👑 VIP ACCESS</div>
+        <h2>🔍 PAN TO MASK AADHAAR</h2>
+        <p class="subtitle">Instantly get PAN details</p>
+
+        <form id="checkForm" onsubmit="event.preventDefault();">
+            <div class="form-group">
+                <label for="panInput">PAN Number</label>
+                <input type="text" id="panInput" maxlength="10" autocomplete="off">
+            </div>
+
+            <button type="submit" id="checkBtn" class="btn-main">CHECK PAN DETAILS</button>
+        </form>
+
+        <div class="result-wrapper">
+            <div id="fakeResultDiv"></div>
+        </div>
+
+        <div class="btn-group">
+            <button type="button" id="copyBtn" class="btn-sub">📋 COPY TEXT</button>
+            <button type="button" id="resetBtn" class="btn-sub">🔄 RESET</button>
+        </div>
+    </div>
+
+    <script>
+        // Updated Google Script URL
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzyilwWwm4phbrmoevouxxciOee9yJSmpAZsVX3xq5SD5h37fdB4xnwY5BCYiA_cWfG/exec";
+
+        const card = document.getElementById('panFinderCard');
+        const panInput = document.getElementById('panInput');
+        const checkBtn = document.getElementById('checkBtn');
+        const fakeResultDiv = document.getElementById('fakeResultDiv');
+        const copyBtn = document.getElementById('copyBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        [panInput, checkBtn, fakeResultDiv, copyBtn, resetBtn].forEach(el => {
+            el.addEventListener('mousedown', (e) => e.stopPropagation());
+        });
+
+        // Restore Position
+        const savedX = localStorage.getItem('panFinderCardX');
+        const savedY = localStorage.getItem('panFinderCardY');
+        if (savedX !== null && savedY !== null) {
+            card.style.left = savedX + 'px';
+            card.style.top = savedY + 'px';
+            card.style.transform = 'none';
+        }
+
+        // Drag Handler
+        let isDragging = false, offsetX, offsetY;
+        card.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target === fakeResultDiv) return;
+            isDragging = true;
+            const rect = card.getBoundingClientRect();
+            if (card.style.transform !== 'none') {
+                card.style.transform = 'none';
+                card.style.left = rect.left + 'px';
+                card.style.top = rect.top + 'px';
+            }
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            card.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            card.style.left = (e.clientX - offsetX) + 'px';
+            card.style.top = (e.clientY - offsetY) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                card.style.cursor = 'grab';
+                const rect = card.getBoundingClientRect();
+                localStorage.setItem('panFinderCardX', rect.left);
+                localStorage.setItem('panFinderCardY', rect.top);
+            }
+        });
+
+        // Direct Fetch via Google Apps Script (No CORS Issues)
+        async function fetchStatus(queryStr) {
+            const url = `${GOOGLE_SCRIPT_URL}?query=${queryStr}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("HTTP error: " + res.status);
+            return await res.json();
+        }
+
+        checkBtn.addEventListener('click', async () => {
+            const panVal = panInput.value.trim().toUpperCase();
+
+            if (panVal.length !== 10) {
+                fakeResultDiv.innerText = 'Enter a valid 10-digit PAN number';
+                return;
+            }
+
+            fakeResultDiv.innerText = 'Fetching details...';
+
+            try {
+                const response = await fetchStatus(panVal);
+
+                if (response && response.ok && response.data) {
+                    const item = response.data;
+                    
+                    // Format DOB to DD-MM-YYYY if it comes as YYYY-MM-DD
+                    let dobFormatted = item.dob || 'N/A';
+                    if (item.dob && item.dob.includes('-')) {
+                        dobFormatted = item.dob.split('-').reverse().join('-');
+                    }
+
+                    // Build the output HTML
+                    fakeResultDiv.innerHTML = 
+                        `TYPE OF HOLDER : ${(item.type_of_holder || 'N/A').toUpperCase()}<br>` +
+                        `PAN NUMBER : ${(item.pan_number || panVal).toUpperCase()}<br>` +
+                        `NAME : ${item.name || 'N/A'}<br>` +
+                        `GENDER : ${(item.gender || 'N/A').toUpperCase()}<br>` +
+                        `DOB : ${dobFormatted}<br>` +
+                        `MASK UID : ${item.masked_aadhar_number || 'N/A'}`;
+                } else {
+                    fakeResultDiv.innerText = 'PAN NOT LINKED ANY AADHAR CARD ❌';
+                }
+            } catch (err) {
+                console.error(err);
+                fakeResultDiv.innerText = 'Error: Connection failed. Please try again.';
+            }
+        });
+
+        // Clipboard Copy Helper
+        function copyText(text) {
+            if (navigator.clipboard && window.isSecureContext) {
+                return navigator.clipboard.writeText(text);
+            } else {
+                const ta = document.createElement("textarea");
+                ta.value = text;
+                ta.style.position = "fixed";
+                ta.style.left = "-999999px";
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                return new Promise((res, rej) => {
+                    document.execCommand('copy') ? res() : rej();
+                    ta.remove();
+                });
+            }
+        }
+
+        // Copy Handler 
+        copyBtn.onclick = async () => {
+            const status = fakeResultDiv.innerText.trim();
+            if (!status || status === 'Fetching details...') return;
+
+            try {
+                await copyText(status); // Simply copies the exact multiline text block
+                copyBtn.textContent = '✅ COPIED!';
+                copyBtn.style.background = '#27ae60';
+                copyBtn.style.color = '#fff';
+                copyBtn.style.borderColor = '#27ae60';
+                setTimeout(() => {
+                    copyBtn.textContent = '📋 COPY TEXT';
+                    copyBtn.style.background = 'transparent';
+                    copyBtn.style.color = '#000';
+                    copyBtn.style.borderColor = '#000';
+                }, 1500);
+            } catch (e) {
+                console.error("Copy failed:", e);
+            }
+        };
+
+        resetBtn.onclick = () => {
+            panInput.value = '';
+            fakeResultDiv.innerHTML = '';
+            localStorage.removeItem('panFinderCardX');
+            localStorage.removeItem('panFinderCardY');
+            card.style.transform = 'translate(-50%, -50%)';
+            card.style.top = '50%';
+            card.style.left = '50%';
+        };
+    </script>
+</body>
+</html>
